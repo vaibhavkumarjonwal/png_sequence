@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 
 const TOTAL_FRAMES = 240
@@ -7,7 +7,7 @@ const DURATION_SECONDS = TOTAL_FRAMES / FPS
 
 function App() {
   const [frameIndex, setFrameIndex] = useState(0)
-  const [isPlaying, setIsPlaying] = useState(true)
+  const [isPlaying, setIsPlaying] = useState(false)
   const [isLooping, setIsLooping] = useState(true)
   const [loadedCount, setLoadedCount] = useState(0)
 
@@ -18,23 +18,31 @@ function App() {
     })
   }, [])
 
-  const preloadRadius = 15
-  const loadedFramesRef = useRef(new Set())
-  
+  const isFullyLoaded = loadedCount === TOTAL_FRAMES
+
   useEffect(() => {
-    const startIdx = Math.max(0, frameIndex - preloadRadius)
-    const endIdx = Math.min(TOTAL_FRAMES - 1, frameIndex + preloadRadius)
-    
-    for (let i = startIdx; i <= endIdx; i++) {
-      if (!loadedFramesRef.current.has(i)) {
-        loadedFramesRef.current.add(i)
-        const img = new Image()
-        img.src = frameUrls[i]
+    let active = true
+    let loaded = 0
+
+    frameUrls.forEach((url) => {
+      const img = new Image()
+      img.src = url
+      img.onload = img.onerror = () => {
+        loaded += 1
+        if (active) {
+          setLoadedCount(loaded)
+          
+          if (loaded === TOTAL_FRAMES) {
+            setIsPlaying(true)
+          }
+        }
       }
+    })
+
+    return () => {
+      active = false
     }
-    
-    setLoadedCount(loadedFramesRef.current.size)
-  }, [frameIndex, frameUrls])
+  }, [frameUrls])
 
   useEffect(() => {
     if (!isPlaying) {
@@ -74,68 +82,80 @@ function App() {
 
   return (
     <main className="page">
-      <section className="player-card">
-        <header className="title-row">
-          <h1>PNG Sequence Player</h1>
-          <span className="tag">24 FPS</span>
-        </header>
-
-        <div className="frame-stage">
-          <img
-            className="frame-image"
-            src={frameUrls[frameIndex]}
-            alt={`Frame ${frameIndex + 1}`}
-            draggable={false}
-          />
-        </div>
-
-        <div className="stats">
-          <p>
-            Frame <strong>{frameIndex + 1}</strong> / {TOTAL_FRAMES}
+      {!isFullyLoaded ? (
+        <section className="loading-card">
+          <h1>Loading Sequence...</h1>
+          <div className="loading-bar-container">
+            <div className="loading-bar" style={{ width: `${loadedPercent}%` }} />
+          </div>
+          <p className="loading-text">
+            {loadedCount} / {TOTAL_FRAMES} frames loaded ({loadedPercent}%)
           </p>
-          <p>
-            Time <strong>{((frameIndex + 1) / FPS).toFixed(2)}s</strong> / {DURATION_SECONDS.toFixed(2)}s
-          </p>
-          <p>
-            Loaded <strong>{loadedCount}</strong> / {TOTAL_FRAMES} ({loadedPercent}%)
-          </p>
-        </div>
+        </section>
+      ) : (
+        <section className="player-card">
+          <header className="title-row">
+            <h1>PNG Sequence Player</h1>
+            <span className="tag">24 FPS</span>
+          </header>
 
-        <div className="controls">
-          <button type="button" onClick={handleTogglePlay}>
-            {isPlaying ? 'Pause' : 'Play'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setFrameIndex(0)
-              setIsPlaying(false)
-            }}
-          >
-            Reset
-          </button>
-          <button
-            type="button"
-            className={isLooping ? 'active' : ''}
-            onClick={() => setIsLooping((prev) => !prev)}
-          >
-            Loop: {isLooping ? 'On' : 'Off'}
-          </button>
-        </div>
+          <div className="frame-stage">
+            <img
+              className="frame-image"
+              src={frameUrls[frameIndex]}
+              alt={`Frame ${frameIndex + 1}`}
+              draggable={false}
+            />
+          </div>
 
-        <div className="scrub-wrap">
-          <input
-            type="range"
-            min="0"
-            max={TOTAL_FRAMES - 1}
-            value={frameIndex}
-            onChange={(event) => {
-              setFrameIndex(Number(event.target.value))
-            }}
-          />
-          <div className="progress" style={{ '--progress': `${progress}%` }} aria-hidden="true" />
-        </div>
-      </section>
+          <div className="stats">
+            <p>
+              Frame <strong>{frameIndex + 1}</strong> / {TOTAL_FRAMES}
+            </p>
+            <p>
+              Time <strong>{((frameIndex + 1) / FPS).toFixed(2)}s</strong> / {DURATION_SECONDS.toFixed(2)}s
+            </p>
+            <p>
+              Status: <strong>{isPlaying ? '▶ Playing' : '⏸ Paused'}</strong>
+            </p>
+          </div>
+
+          <div className="controls">
+            <button type="button" onClick={handleTogglePlay}>
+              {isPlaying ? 'Pause' : 'Play'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFrameIndex(0)
+                setIsPlaying(false)
+              }}
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              className={isLooping ? 'active' : ''}
+              onClick={() => setIsLooping((prev) => !prev)}
+            >
+              Loop: {isLooping ? 'On' : 'Off'}
+            </button>
+          </div>
+
+          <div className="scrub-wrap">
+            <input
+              type="range"
+              min="0"
+              max={TOTAL_FRAMES - 1}
+              value={frameIndex}
+              onChange={(event) => {
+                setFrameIndex(Number(event.target.value))
+              }}
+            />
+            <div className="progress" style={{ '--progress': `${progress}%` }} aria-hidden="true" />
+          </div>
+        </section>
+      )}
     </main>
   )
 }
