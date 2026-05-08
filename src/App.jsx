@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 
 const TOTAL_FRAMES = 240
@@ -18,25 +18,23 @@ function App() {
     })
   }, [])
 
+  const preloadRadius = 15
+  const loadedFramesRef = useRef(new Set())
+  
   useEffect(() => {
-    let active = true
-    let loaded = 0
-
-    frameUrls.forEach((url) => {
-      const img = new Image()
-      img.src = url
-      img.onload = img.onerror = () => {
-        loaded += 1
-        if (active) {
-          setLoadedCount(loaded)
-        }
+    const startIdx = Math.max(0, frameIndex - preloadRadius)
+    const endIdx = Math.min(TOTAL_FRAMES - 1, frameIndex + preloadRadius)
+    
+    for (let i = startIdx; i <= endIdx; i++) {
+      if (!loadedFramesRef.current.has(i)) {
+        loadedFramesRef.current.add(i)
+        const img = new Image()
+        img.src = frameUrls[i]
       }
-    })
-
-    return () => {
-      active = false
     }
-  }, [frameUrls])
+    
+    setLoadedCount(loadedFramesRef.current.size)
+  }, [frameIndex, frameUrls])
 
   useEffect(() => {
     if (!isPlaying) {
