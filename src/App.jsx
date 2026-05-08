@@ -14,7 +14,7 @@ function App() {
   const frameUrls = useMemo(() => {
     return Array.from({ length: TOTAL_FRAMES }, (_, i) => {
       const frameNumber = String(i + 1).padStart(4, '0')
-      return `/sequence/tmp${frameNumber}.webp`
+      return `/sequence/tmp${frameNumber}.avif`
     })
   }, [])
 
